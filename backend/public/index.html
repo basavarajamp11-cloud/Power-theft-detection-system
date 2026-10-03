@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoltGard - IoT Power Theft Detector & KCL SCADA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --blue: #38bdf8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --glow-red: rgba(239, 68, 68, 0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #2563eb, var(--blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+    }
+    .brand-title {
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .brand-title span { color: var(--blue); font-weight: 400; font-size: 1rem; }
+    .brand-sub { font-size: 0.8rem; color: var(--muted); }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--green);
+      color: var(--green);
+    }
+    .status-badge.theft {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--red);
+      color: var(--red);
+      box-shadow: 0 0 15px var(--glow-red);
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse { from { opacity: 0.8; } to { opacity: 1; } }
+    .kcl-banner {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .kcl-formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.05rem;
+      color: var(--blue);
+      background: var(--surface);
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .kcl-details { font-size: 0.85rem; color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+    .card-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+    .card-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .card-val span { font-size: 1rem; color: var(--muted); margin-left: 4px; }
+    .card.highlight {
+      border-color: var(--blue);
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.08), var(--card-bg));
+    }
+    .card.danger {
+      border-color: var(--red);
+      background: linear-gradient(180deg, rgba(239, 68, 68, 0.15), var(--card-bg));
+    }
+    .card.danger .card-val { color: var(--red); }
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      margin-bottom: 24px;
+    }
+    .panel-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .controls-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    button {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    button:hover { background: #334155; }
+    button.btn-danger {
+      background: #7f1d1d;
+      border-color: var(--red);
+      color: #fecaca;
+    }
+    button.btn-danger:hover { background: #991b1b; }
+    button.btn-success {
+      background: #065f46;
+      border-color: var(--green);
+      color: #a7f3d0;
+    }
+    button.btn-success:hover { background: #047857; }
+    .log-box {
+      background: #060911;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .log-entry { margin-bottom: 6px; }
+    .log-entry.theft { color: #f87171; font-weight: 700; }
+    .log-entry.ok { color: #4ade80; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <h1 class="brand-title">VOLTGARD <span>KCL SCADA</span></h1>
+        <p class="brand-sub">Real-Time Power Theft Detection & Kirchhoff Current Law Monitor</p>
+      </div>
+    </div>
+    <div>
+      <div id="mainStatusBadge" class="status-badge">
+        <span id="statusDot">●</span>
+        <span id="statusText">GRID STABLE - NO THEFT</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- KCL Formula Equation Bar -->
+  <div class="kcl-banner">
+    <div>
+      <div class="card-label">KIRCHHOFF'S CURRENT LAW (KCL) NODE BALANCE</div>
+      <div class="kcl-formula">I_theft = I_in - I_out - (I_auth1 + I_auth2)</div>
+    </div>
+    <div class="kcl-details">
+      <div>Theft Threshold: <b>0.15 A</b></div>
+      <div>WhatsApp Cooldown: <b id="cooldownLabel">60s</b></div>
+      <div>Relay Status: <b id="relayStatusLabel">CLOSED</b></div>
+    </div>
+  </div>
+
+  <!-- Telemetry Metrics Grid -->
+  <div class="grid">
+    <div class="card highlight">
+      <div class="card-label">ENTERING CURRENT (I_in)</div>
+      <div class="card-val" id="valIn">0.000 <span>A</span></div>
+      <div class="card-label">Total Substation Feed</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">EXITING TO ZONE 2 (I_out)</div>
+      <div class="card-val" id="valOut">0.000 <span>A</span></div>
+      <div class="card-label">Downstream Trunk Line</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">HOUSE 1 LOAD (I_auth1)</div>
+      <div class="card-val" id="valAuth1">0.000 <span>A</span></div>
+      <div class="card-label">Authorized Smart Meter 1</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">HOUSE 2 LOAD (I_auth2)</div>
+      <div class="card-val" id="valAuth2">0.000 <span>A</span></div>
+      <div class="card-label">Authorized Smart Meter 2</div>
+    </div>
+
+    <div class="card danger" id="theftCard">
+      <div class="card-label">UNAUTHORIZED THEFT (I_theft)</div>
+      <div class="card-val" id="valTheft">0.000 <span>A</span></div>
+      <div class="card-label">Power Draw: <b id="valPower">0.0 W</b></div>
+    </div>
+  </div>
+
+  <!-- Interactive Controls & Simulator -->
+  <div class="panel">
+    <div class="panel-title">
+      <span>TEST SANDBOX & REMOTE RELAY ACTUATION</span>
+      <span style="font-size: 0.8rem; color: var(--muted);" id="lastUpdateTime">Waiting for telemetry...</span>
+    </div>
+    <div class="controls-row">
+      <button class="btn-danger" onclick="sendSimulatedTheft(true)">🚨 Simulate 0.50A Theft Bypass</button>
+      <button class="btn-success" onclick="sendSimulatedTheft(false)">✅ Restore Normal Grid Load</button>
+      <button onclick="toggleRelay('OPEN')" class="btn-danger">🛑 Trip Remote Relay (OPEN)</button>
+      <button onclick="toggleRelay('CLOSED')" class="btn-success">🔌 Restore Remote Relay (CLOSED)</button>
+    </div>
+  </div>
+
+  <!-- Real-Time Activity Log -->
+  <div class="panel">
+    <div class="panel-title">SCADA EVENT AUDIT LOG</div>
+    <div class="log-box" id="logBox">
+      <div class="log-entry ok">[System Ready] Monitoring endpoint active on port 5000. Listening for ESP32 packets...</div>
+    </div>
+  </div>
+
+  <script>
+    const el = {
+      valIn: document.getElementById('valIn'),
+      valOut: document.getElementById('valOut'),
+      valAuth1: document.getElementById('valAuth1'),
+      valAuth2: document.getElementById('valAuth2'),
+      valTheft: document.getElementById('valTheft'),
+      valPower: document.getElementById('valPower'),
+      theftCard: document.getElementById('theftCard'),
+      mainStatusBadge: document.getElementById('mainStatusBadge'),
+      statusText: document.getElementById('statusText'),
+      cooldownLabel: document.getElementById('cooldownLabel'),
+      relayStatusLabel: document.getElementById('relayStatusLabel'),
+      lastUpdateTime: document.getElementById('lastUpdateTime'),
+      logBox: document.getElementById('logBox')
+    };
+
+    function addLog(msg, isTheft) {
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = `log-entry ${isTheft ? 'theft' : 'ok'}`;
+      div.textContent = `[${time}] ${msg}`;
+      el.logBox.prepend(div);
+    }
+
+    async function fetchLatest() {
+      try {
+        const res = await fetch('/api/telemetry/latest');
+        const json = await res.json();
+        if (json.success && json.data) {
+          updateUI(json.data);
+        }
+      } catch (e) {}
+    }
+
+    function updateUI(data) {
+      const { kclVerification, theftAnalysis, relayStatus, timestamp } = data;
+      el.valIn.innerHTML = `${kclVerification.I_in.toFixed(3)} <span>A</span>`;
+      el.valOut.innerHTML = `${kclVerification.I_out.toFixed(3)} <span>A</span>`;
+      el.valAuth1.innerHTML = `${kclVerification.I_auth1.toFixed(3)} <span>A</span>`;
+      el.valAuth2.innerHTML = `${kclVerification.I_auth2.toFixed(3)} <span>A</span>`;
+      el.valTheft.innerHTML = `${theftAnalysis.unauthorizedCurrentAmp.toFixed(3)} <span>A</span>`;
+      el.valPower.textContent = `${theftAnalysis.unauthorizedPowerWatts.toFixed(1)} W`;
+      el.relayStatusLabel.textContent = relayStatus || 'CLOSED';
+      el.lastUpdateTime.textContent = `Last update: ${new Date(timestamp).toLocaleTimeString()}`;
+
+      if (theftAnalysis.cooldownRemainingSec > 0) {
+        el.cooldownLabel.textContent = `${theftAnalysis.cooldownRemainingSec}s (Active)`;
+      } else {
+        el.cooldownLabel.textContent = `Ready (60s)`;
+      }
+
+      if (theftAnalysis.theftDetected) {
+        el.mainStatusBadge.className = 'status-badge theft';
+        el.statusText.textContent = `🚨 POWER THEFT DETECTED: ${theftAnalysis.unauthorizedCurrentAmp.toFixed(3)}A`;
+        el.theftCard.className = 'card danger';
+      } else {
+        el.mainStatusBadge.className = 'status-badge';
+        el.statusText.textContent = 'GRID STABLE - NO THEFT';
+        el.theftCard.className = 'card';
+      }
+    }
+
+    async function sendSimulatedTheft(isTheft) {
+      const payload = isTheft ? {
+        zone: "Zone 1 - Main Feeder",
+        I_in: 1.85,
+        I_out: 0.40,
+        I_auth1: 0.50,
+        I_auth2: 0.45,
+        I_theft: 0.50,
+        theftDetected: true,
+        relayStatus: "CLOSED"
+      } : {
+        zone: "Zone 1 - Main Feeder",
+        I_in: 1.00,
+        I_out: 0.20,
+        I_auth1: 0.40,
+        I_auth2: 0.40,
+        I_theft: 0.00,
+        theftDetected: false,
+        relayStatus: "CLOSED"
+      };
+
+      const res = await fetch('/api/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      updateUI(data);
+      addLog(isTheft ? `Theft Injected: I_theft = 0.50A (115W). KCL violated!` : `Normal Load Restored: I_theft = 0.00A. KCL balanced.`, isTheft);
+    }
+
+    async function toggleRelay(state) {
+      const res = await fetch('/api/relay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relayStatus: state })
+      });
+      const data = await res.json();
+      el.relayStatusLabel.textContent = state;
+      addLog(`Relay commanded to: ${state}`, state === 'OPEN');
+    }
+
+    setInterval(fetchLatest, 2500);
+    fetchLatest();
+  </script>
+</body>
+</html>
